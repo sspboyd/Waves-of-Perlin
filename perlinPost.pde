@@ -13,11 +13,11 @@ boolean PDFOUT = false;
 float margin;
 float PLOT_X1, PLOT_X2, PLOT_Y1, PLOT_Y2;
 
-float perXOff = 0.0;
-float perYOff = 0.0;
+// float perXOff = 0.0; // not needed here. it is now a local var in the getNewVals function
+// float perYOff = 0.0; 
 float perZOff = 0.0;
 
-final int xDim = 20;
+final int xDim = 10;
 final int yDim = 20;
 
 // size of board 10x10
@@ -25,7 +25,7 @@ int boardLength = xDim * yDim;
 
 int[] bkgClrArr = new int[boardLength];
 int[] frgClrArr = new int[boardLength];
-int[] angArr = new int[boardLength];
+float[] angArr = new float[boardLength];
 float tileW, tileH;
 
 
@@ -37,10 +37,10 @@ float tileW, tileH;
 void setup() {
   background(255);
   if (PDFOUT) {
-    size(800, 450, PDF, generateSaveImgFileName(".pdf"));
+    size(720, 720, PDF, generateSaveImgFileName(".pdf"));
   }
   else {
-    size(600, 600); // quarter page size
+    size(720, 720); // quarter page size
   }
 
   smooth(8);
@@ -63,56 +63,12 @@ void setup() {
 
   noStroke();
 
+  updateAng();
   updateBkg();
   updateFrg();
   println("setup done: " + nf(millis() / 1000.0, 1, 2));
 }
 
-// Perlin example
-// background color - Black or White
-// forground colour  - black with white outline, white with black outline
-// rotation of figure - 1 of 4
-
-void updateBkg() {
-  for (int i = 0; i < bkgClrArr.length; i++) {
-    perXOff += 0.1;
-    bkgClrArr[i] = round(noise(perXOff));
-  }
-}
-
-
-void renderBkg() {
-  for (int y = 0; y < yDim; y++) {
-    for (int x = 0; x < xDim; ++x) {
-      // draw bkground (solid b or w clr)
-      color bkgClr = color(255 * bkgClrArr[(y*xDim) + x]);
-      fill(bkgClr);
-      rect(x * tileW, y * tileH, tileW, tileH);
-    }
-  }
-}
-
-void updateFrg() {
-  for (int i = 0; i < frgClrArr.length; i++) {
-    perYOff += 0.1;
-    frgClrArr[i] = round(noise(perXOff, perYOff));
-  }
-}
-
-void renderFrg() {
-  for (int y = 0; y < yDim; y++) {
-    for (int x = 0; x < xDim; ++x) {
-      // draw bkground (solid b or w clr)
-      color frgClr = color(255 * frgClrArr[(y*xDim) + x]);
-      fill(frgClr);
-      pushMatrix();
-      translate(x * tileW + tileW/2, y * tileH + (tileH / 2));
-      rotate(PI + QUARTER_PI);
-      rect(tileW / -2, tileH / (1 / pow(PHI, 2)) / -2, tileW, tileH / (1 / pow(PHI, 2)));
-      popMatrix();
-    }
-  }
-}
 void draw() {
   renderBkg();
   renderFrg();
@@ -124,19 +80,98 @@ void draw() {
   text("sspboyd", PLOT_X2 - textWidth("sspboyd")  + margin / 2 - 1, PLOT_Y2  + margin / 2 - 0);
 
   if (mousePressed) {
-    // updateBkg();
-    // updateFrg();
+  }else{
+    updateAng();
+    updateBkg();
+    updateFrg();
   }
   if (PDFOUT) exit();
 }
 
+
+
+
+// Perlin example
+// background color - Black or White
+// forground colour  - black with white outline, white with black outline
+// rotation of figure - 1 of 4
+
+// returns an array of 0-1 floats from a perlin noise field.
+// the x and y values indicate the size of the grid to be filled
+// zOff is the z index offset for the perlin field
+float[] getNewVals(int xD, int yD){
+  float[] newValArr = new float[xD*yD];
+  float perXOff = 0.0;
+  float perYOff = 0.0;
+  perZOff += 0.01;
+  for (int y = 0; y < yD; y++) {
+    perYOff+=0.1;
+    for (int x = 0; x < xD; x++) {
+      perXOff+=0.1;
+      int indx = y*xD+x;
+      newValArr[indx] = noise(perXOff, perYOff, perZOff);
+    }
+  }
+  return newValArr;
+}
+
+void updateAng() {
+  float[] newVals = getNewVals(xDim, yDim);
+  for (int i = 0; i < angArr.length; i++) {
+    angArr[i] = newVals[i];
+  }
+}
+
+void updateBkg() {
+  float[] newVals = getNewVals(xDim, yDim);
+  for (int i = 0; i < bkgClrArr.length; i++) {
+    bkgClrArr[i] = round(newVals[i]);
+  }
+}
+
+
+void renderBkg() {
+  for (int y = 0; y < yDim; y++) {
+    for (int x = 0; x < xDim; ++x) {
+      // draw bkground (solid b or w clr)
+      color bkgClr = color(255 * bkgClrArr[(y*xDim) + x]);
+      fill(bkgClr);
+      noStroke();
+      rect(x * tileW, y * tileH, tileW, tileH);
+    }
+  }
+}
+
+void updateFrg() {
+  float[] newVals = getNewVals(xDim, yDim);
+  for (int i = 0; i < frgClrArr.length; i++) {
+    frgClrArr[i] = round(newVals[i]);
+  }
+}
+
+void renderFrg() {
+  for (int y = 0; y < yDim; y++) {
+    for (int x = 0; x < xDim; ++x) {
+      // draw bkground (solid b or w clr)
+      color frgClr = color(255 * frgClrArr[(y*xDim) + x]);
+      color frgInvClr = (frgClrArr[(y*xDim) + x] > 0) ? color(0) : color(255);
+      // stroke(frgInvClr);
+      fill(frgClr);
+      pushMatrix();
+      translate(x * tileW + tileW/2, y * tileH + (tileH / 2));
+      rotate(HALF_PI * (round(4.0 * angArr[(y*xDim) + x])) + QUARTER_PI);
+      rect(tileW / -1, tileH / (1 / pow(PHI, 2)) / -2, tileW, tileH / (1 / pow(PHI, 1)));
+      popMatrix();
+    }
+  }
+}
 void keyPressed() {
   if (key == 'S') screenCap(".tif");
 }
 
 void mousePressed() {
-  updateBkg();
-  updateFrg();
+  // updateBkg();
+  // updateFrg();
 }
 
 String generateSaveImgFileName(String fileType) {
